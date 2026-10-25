@@ -1,5 +1,5 @@
 // Garde l'app disponible hors connexion. Change VERSION après chaque mise à jour des fichiers.
-const VERSION = "kaishi-v1";
+const VERSION = "kaishi-v2";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./apple-touch-icon.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
