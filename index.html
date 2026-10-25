@@ -282,6 +282,10 @@ details.box div{margin-top:6px}
 
 .credits{font-size:12px;color:var(--muted);margin-top:18px}
 .credits a{color:inherit}
+
+.sync.bad{color:var(--learn);align-items:flex-start;background:color-mix(in srgb,var(--learn) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--learn) 40%,var(--line));border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.5}
+.sync.bad i{background:var(--learn);margin-top:6px}
+.sync.bad b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -456,7 +460,14 @@ function snapshotLocal(){
   const cards={}; for(const k in S.cards) cards[k]=toArr(S.cards[k]);
   return {v:1,cards,daily:S.daily,dk:S.dk,hist:S.hist,histK:S.histK,cfg:S.cfg,cfgMod:S.cfgMod};
 }
-function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify({...snapshotLocal(),deck}))}catch(e){}}
+let STORAGE_OK=true, lastSaved=0;
+function checkStorage(){try{const k="kaishi-test";localStorage.setItem(k,"1");const ok=localStorage.getItem(k)==="1";localStorage.removeItem(k);return ok}catch(e){return false}}
+function saveLocal(){
+  try{ const raw=JSON.stringify({...snapshotLocal(),deck}); localStorage.setItem(LS_KEY,raw);
+    if(localStorage.getItem(LS_KEY)!==raw) throw new Error("not kept");
+    STORAGE_OK=true; lastSaved=Date.now(); }
+  catch(e){ if(STORAGE_OK){STORAGE_OK=false; renderSync();} }
+}
 function loadLocal(){
   try{const raw=localStorage.getItem(LS_KEY); if(!raw) return; const o=JSON.parse(raw);
     for(const k in o.cards) S.cards[k]=fromArr(o.cards[k]);
@@ -524,8 +535,12 @@ async function connect(){
     if(ch) refresh();
   }catch(e){REMOTE=null; renderSync();}
 }
-function renderSync(){const el=$("#sync"); if(!el) return; el.className="sync"+(REMOTE?" ok":"");
-  el.innerHTML=REMOTE?"<i></i>Progression synchronisée avec ton compte (iPhone, PC…)":"<i></i>Progression enregistrée sur cet appareil. Fais une sauvegarde de temps en temps (Réglages).";}
+function renderSync(){const el=$("#sync"); if(!el) return;
+  const seen=Object.keys(S.cards).filter(k=>S.cards[k].q!==0).length;
+  if(REMOTE){el.className="sync ok";el.innerHTML="<i></i>Progression synchronisée avec ton compte (iPhone, PC…)";return}
+  if(!STORAGE_OK){el.className="sync bad";el.innerHTML=`<i></i><span><b>Ce navigateur n'enregistre pas ta progression</b> : elle sera perdue au rechargement. C'est le cas en navigation privée, ou si les cookies sont bloqués (iPhone : Réglages › Safari › désactiver « Bloquer tous les cookies »). Le plus sûr : ajoute l'app sur l'écran d'accueil et ouvre-la depuis l'icône.</span>`;return}
+  el.className="sync ok";
+  el.innerHTML=`<i></i>Progression enregistrée sur cet appareil${seen?` (${seen} carte${seen>1?"s":""} vue${seen>1?"s":""})`:""}. Fais une sauvegarde de temps en temps (Réglages).`;}
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){saveLocal();flush()} else if(REMOTE){pull().then(c=>{if(c)refresh()})} });
 
 /* ---------- views ---------- */
@@ -975,7 +990,7 @@ setInterval(()=>{ if(view==="study"&&cur==null) nextCard(); else if(view!=="load
 
 /* ---------- boot ---------- */
 (async function boot(){
-  loadLocal();
+  STORAGE_OK=checkStorage(); loadLocal();
   try{
     const d=JSON.parse(document.getElementById("deck").textContent); CARDS=d.cards; GRAM=d.grammar;
     const kd=JSON.parse(document.getElementById("kanji").textContent); KANJI=kd.kanji; KGROUPS=kd.groups;
