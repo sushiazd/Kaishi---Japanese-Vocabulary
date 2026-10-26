@@ -344,6 +344,15 @@ details.box div{margin-top:6px}
 .kcard .pad{margin:6px auto 0}
 .les-pass{margin:0 0 8px;font-size:14px;color:var(--muted)}
 .les-pass b{color:var(--ai)}
+
+/* ---------- test de niveau ---------- */
+.pt-card{display:grid;gap:6px;background:var(--ai-soft);border:1px solid color-mix(in srgb,var(--ai) 30%,var(--line));border-radius:12px;padding:12px 14px;font-size:14.5px}
+.pt-card b{font-size:15.5px}
+.pt-card .ghost{justify-self:start;background:var(--surface)}
+.pt-head{display:grid;gap:8px;margin-bottom:12px}
+.pt-top{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:var(--muted)}
+.pt-top b{color:var(--ink)}
+.pt-tired{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13.5px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -602,7 +611,7 @@ function renderSync(){const el=$("#sync"); if(!el) return;
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden"){saveLocal();flush()} else if(REMOTE){pull().then(c=>{if(c)refresh()})} });
 
 /* ---------- views ---------- */
-function refresh(){ if(view==="home") renderHome(); else if(view==="study"&&!shown) nextCard(); else if(view!=="lesson") renderCounts(); }
+function refresh(){ if(view==="home") renderHome(); else if(view==="study"&&!shown) nextCard(); else if(view==="home"||view==="study") renderCounts(); }
 
 function stats(d=deck){
   let nw=0,learn=0,young=0,mature=0,susp=0;
@@ -620,7 +629,7 @@ function deckTabs(){
   return `<div class="seg" role="tablist" aria-label="Choisir le deck">${tab("vocab","開始","Vocabulaire")}${tab("kanji","漢字","Kanji N5")}</div>`;
 }
 function renderHome(){
-  view="home"; cur=null; shown=false; pad=null; LES=null; $("#answer").hidden=true; renderBrand();
+  view="home"; cur=null; shown=false; pad=null; LES=null; if(PT){clearTimeout(PT._t);PT=null;} $("#answer").hidden=true; renderBrand();
   const g=renderCounts(), s=stats(), N=s.N, total=g.fresh.length+g.learnNow.length+g.learnSoon.length+g.rev.length;
   const pct=x=>(x/N*100).toFixed(2)+"%", K=deck==="kanji";
   const intro = K
@@ -639,6 +648,7 @@ function renderHome(){
         <div><strong class="c-learn">${g.learnNow.length+g.learnSoon.length}</strong><small>Apprentissage</small></div>
         <div><strong class="c-rev">${g.rev.length}</strong><small>À réviser</small></div>
       </div>
+      ${K&&lessonPool().length===KANJI.length?`<div class="pt-card"><b>Tu connais déjà des kanji ?</b><span>Le test de niveau (environ 10 minutes, tu peux t'arrêter quand tu veux) repère ceux que tu sais déjà et t'évite leurs leçons.</span><button class="ghost" id="ptBtn">Faire le test de niveau</button></div>`:""}
       ${K?kanjiButtons(g):`<button class="primary" id="studyBtn" ${total?"":"disabled"}>${total?"Étudier maintenant":"Rien à étudier pour l'instant"}</button>`}
       <div class="meter">
         <div class="meter-top num"><span>Progression du deck</span><span>${N-s.nw-s.susp} / ${N} ${unit}</span></div>
@@ -656,6 +666,7 @@ function renderHome(){
   renderSync();
   const b=$("#studyBtn"); if(b) b.onclick=()=>startStudy();
   const lb=$("#lessonBtn"); if(lb) lb.onclick=()=>startLesson();
+  const pb=$("#ptBtn"); if(pb) pb.onclick=()=>startPlacement();
 }
 function kanjiButtons(g){
   const nL=lessonCount(), nR=g.fresh.length+g.learnNow.length+g.learnSoon.length+g.rev.length;
@@ -820,7 +831,7 @@ function openMenu(){
     <button data-act="undo" ${undoStack.length?"":"disabled"}>Annuler la dernière réponse</button>
     <button data-act="bury" ${inStudy?"":"disabled"}>Mettre de côté jusqu'à demain</button>
     <button data-act="susp" ${inStudy?"":"disabled"}>Suspendre (je connais déjà)</button>
-    ${K?`<button data-act="grid">Tous les kanji</button><button data-act="method">La méthode</button>`:`<button data-act="browse">Parcourir les mots</button>`}
+    ${K?`<button data-act="grid">Tous les kanji</button><button data-act="placement">Test de niveau</button><button data-act="method">La méthode</button>`:`<button data-act="browse">Parcourir les mots</button>`}
     <button data-act="stats">Statistiques</button><button data-act="settings">Réglages</button>`;
   m.hidden=false;
 }
@@ -829,7 +840,7 @@ document.addEventListener("click",e=>{
   if(dk){ setDeck(dk.dataset.deck); return; }
   if(act){ $("#menu").hidden=true; const a=act.dataset.act;
     if(a==="home") renderHome(); else if(a==="deck") setDeck(deck==="kanji"?"vocab":"kanji");
-    else if(a==="undo") undo(); else if(a==="bury") bury();
+    else if(a==="undo") undo(); else if(a==="bury") bury(); else if(a==="placement") startPlacement();
     else if(a==="susp"){ suspend(cur); toast(`Carte suspendue. Tu peux la réactiver dans « ${deck==="kanji"?"Tous les kanji":"Parcourir"} ».`); nextCard(); }
     else openSheet(a); return; }
   if(op){ openSheet(op.dataset.open); return; }
@@ -845,7 +856,7 @@ function openSheet(kind,arg){
   const close=()=>{host.hidden=true;host.innerHTML="";sheetStack=[];delete PADS.padPractice;
     if(view==="home") renderHome();
     else if(view==="study"){ if(cur==null||st(cur).susp) nextCard(); else renderCard(true); }
-    else if(view!=="lesson") renderCounts(); };
+    else if(view==="lesson") renderLesson(); else if(view==="placement") renderPlacement(); };
   $("#closeSheet").onclick=close; $("#sheetBack").onclick=e=>{if(e.target.id==="sheetBack")close()};
   $("#backSheet").onclick=()=>{sheetStack.pop(); const p=sheetStack.pop(); if(p) showSheet(p[0],p[1]);};
   sheetStack=[]; showSheet(kind,arg);
@@ -1408,12 +1419,69 @@ function renderKanjiWrite(noAudio){
     if(S.cfg.autoplay&&!noAudio) speak([ex[1]]);
   }
 }
+
+/* ===================== Bloc E : test de niveau ===================== */
+let PT=null;
+function startPlacement(){
+  const list=lessonPool(); if(!list.length){ toast("Tous les kanji ont déjà commencé : pas besoin de test."); return; }
+  PT={list,pos:0,stage:"m",known:[],unknown:[],streak:0,answered:false}; view="placement"; cur=null; LES=null; renderPlacement();
+}
+function ptHead(){ const n=PT.list.length; return `<div class="pt-head"><div class="pt-top num"><b>Test de niveau</b><span>${Math.min(PT.pos+1,n)} / ${n} · ${PT.known.length} connu${PT.known.length>1?"s":""}</span></div><div class="meter-track"><i class="m-mature" style="width:${(PT.pos/n*100).toFixed(1)}%"></i></div></div>`; }
+function renderPlacement(){
+  if(!PT) return renderHome();
+  $("#counts").innerHTML=`<span class="c-new on" title="Test de niveau">${PT.list.length-PT.pos}</span>`;
+  if(PT.pos>=PT.list.length) return finishPlacement();
+  const i=PT.list[PT.pos], k=KANJI[i], ex=k[7][0]; PT.answered=false;
+  const prompt=PT.stage==="m"?`<div class="kbig">${k[0]}</div><p class="kq">Que veut dire ce kanji ?</p>`:`<div class="qword">${wordHL(ex[0],k[0])}</div><p class="kq">Comment se lit ce mot ?</p>`;
+  const tired=PT.streak>=8?`<div class="pt-tired"><span>Plusieurs kanji d'affilée inconnus : tu peux t'arrêter là, le reste arrivera en leçons.</span><button class="ghost sm" id="ptStop2">Terminer le test</button></div>`:"";
+  $("#view").innerHTML=`<section class="lesson fade">${ptHead()}${tired}<article class="card kcard"><div class="tagline"><span class="chip kind">${PT.stage==="m"?"Sens":"Lecture"}</span><span></span></div>${prompt}${qFieldHTML(PT.stage)}</article>
+    <p class="tip">Réponds seulement si tu sais vraiment. Un kanji est compté connu si tu trouves son sens et la lecture d'un mot.</p></section>`;
+  const a=$("#answer"), inner=$("#answerInner"); a.hidden=false;
+  inner.innerHTML=`<div class="les-nav"><button class="ghost" id="ptStop">Terminer</button><button class="show-btn" id="ptIdk">Je ne sais pas</button></div>`;
+  $("#ptStop").onclick=finishPlacement; if($("#ptStop2")) $("#ptStop2").onclick=finishPlacement;
+  const W=wireQuestion(PT.stage,v=>{
+    const r=PT.stage==="m"?checkMeaning(k,v):checkReading(ex[1],v);
+    PT.answered=true;
+    const goOn=()=>{ if(!PT) return;
+      if(PT.stage==="m"&&r.ok){PT.stage="r";}
+      else { if(PT.stage==="r"&&r.ok){PT.known.push(i);PT.streak=0} else {PT.unknown.push(i);PT.streak++} PT.stage="m"; PT.pos++; }
+      renderPlacement(); };
+    inner.innerHTML=`<div class="les-nav"><button class="ghost" id="ptStop">Terminer</button><button class="show-btn" id="ptNext">Continuer</button></div>`;
+    $("#ptStop").onclick=()=>{ if(PT.stage==="r"&&r.ok) PT.known.push(i); finishPlacement(); };
+    $("#ptNext").onclick=goOn; setTimeout(()=>{try{$("#ptNext").focus({preventScroll:true})}catch(e){}},30);
+    if(r.ok) PT._t=setTimeout(()=>{ if(PT&&PT.answered&&PT.list[PT.pos]===i) goOn(); },650);
+    const sol=PT.stage==="m"?esc(k[1]):`${esc(ex[0])} se lit <b>${esc(ex[1])}</b>`;
+    return {ok:r.ok,html:r.ok?`<p class="ok">Correct.</p><p class="qsol">${sol}</p>`:`<p class="bad">${r.empty?"Pas de réponse.":"Pas tout à fait."}</p><p class="qsol">${PT.stage==="m"?"Réponse : <b>"+sol+"</b>":sol}</p>`};
+  });
+  $("#ptIdk").onclick=()=>W.submit();
+}
+function finishPlacement(){
+  if(!PT) return renderHome();
+  clearTimeout(PT._t);
+  const now=Date.now(), t=today(now), K=PT.known;
+  K.forEach((i,n)=>{
+    const ivl=4+(n%7);
+    S.cards[KR+i]={...NEW,q:2,ivl,ease:START_EASE,reps:1,due:t+ivl,mod:now};
+    if(S.cfg.kWrite) S.cards[KW+i]={...NEW,q:1,step:1,ease:START_EASE,due:dayStart(t+1+(n%7)),mod:now};
+    changed(KR+i); changed(KW+i);
+  });
+  changed(null);
+  const tested=PT.pos, left=lessonPool().length;
+  PT=null; view="placementDone";
+  $("#view").innerHTML=`<section class="done fade"><p class="big">${K.length}</p><h2>kanji déjà connus sur ${tested} testés</h2>
+    <p>${K.length?`Ils sont marqués comme acquis : ils reviendront en révision d'ici 4 à 10 jours pour confirmer${S.cfg.kWrite?", et tu les écriras de mémoire au fil de la semaine":""}.`:"Aucun kanji n'a été marqué comme connu."} ${left?`Les ${left} autres arriveront en leçons, 5 par 5.`:""}</p>
+    <div class="links" style="justify-content:center">${left?`<button class="primary" style="width:auto" id="ptLesson">Commencer une leçon</button>`:""}<button class="ghost" id="homeBtn">Accueil</button></div></section>`;
+  $("#answer").hidden=true; renderCounts();
+  if($("#ptLesson")) $("#ptLesson").onclick=startLesson;
+  $("#homeBtn").onclick=renderHome;
+}
 /* ---------- misc ---------- */
 let toastT=null; function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
 document.addEventListener("keydown",e=>{
   if(e.target.closest("input,textarea")||!$("#sheet").hidden) return;
   if(e.target.closest("canvas")) return;
   if((e.key===" "||e.key==="Enter")&&e.target.closest("button")) return;
+  if(view==="placement"&&PT){ if(PT.answered&&(e.key==="Enter"||e.key===" ")){e.preventDefault(); $("#ptNext")&&$("#ptNext").click();} return; }
   if(view==="lesson"&&LES){ if(LES.phase==="learn"){ if(e.key==="ArrowRight"||e.key==="Enter"||e.key===" "){e.preventDefault();lessonMove(1)} else if(e.key==="ArrowLeft") lessonMove(-1); }
     else if(LES.phase==="quiz"&&LES.answered&&(e.key==="Enter"||e.key===" ")){e.preventDefault(); $("#qNext")&&$("#qNext").click();} return; }
   if(view!=="study"||cur==null){ if(e.key===" "&&view==="home"&&$("#studyBtn")&&!$("#studyBtn").disabled){e.preventDefault();startStudy()} return; }

@@ -4,7 +4,12 @@ Learn 1500 words in Japanese: le deck **Kaishi 1.5k** (les 1 500 mots japonais l
 
 Deux decks :
 - **Vocabulaire** : Kaishi 1.5k, mot + phrase d'exemple, furigana, audio (synthèse vocale).
-- **Kanji N5** : les 79 kanji du JLPT N5, avec une carte de lecture (sens, on'yomi, kun'yomi, mots d'exemple) et une carte d'écriture au doigt avec l'animation de l'ordre des traits. Chaque kanji a une astuce pour le retenir, et une page explique la méthode.
+- **Kanji N5** : les 79 kanji du JLPT N5.
+  - **Leçons** par paquets de 5 : sens et éléments, lectures avec astuce et mots, écriture (sur le modèle puis de mémoire), puis quiz.
+  - **Révisions tapées** : sens en français (synonymes et fautes de frappe tolérés) et lecture d'un mot en romaji converti en kana, corrigés automatiquement.
+  - **Écriture vérifiée trait par trait** (position, forme, sens du tracé, ordre), avec indices et note automatique.
+  - **Test de niveau** pour marquer comme acquis les kanji déjà connus.
+  - Astuces pour le sens et la lecture, page « méthode ».
 
 ## Installer sur l'iPhone
 
