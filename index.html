@@ -337,6 +337,13 @@ details.box div{margin-top:6px}
 .grade.pri{border-width:2px;border-color:var(--k)}
 .grade.typo small{color:var(--muted)}
 .ghost.wide{width:100%;padding:14px}
+
+/* ---------- tablette vérifiée ---------- */
+.padmsg{min-height:22px;margin:8px 0 0;font-size:14px;color:var(--muted);font-weight:600}
+.padmsg.ok{color:var(--rev)} .padmsg.bad{color:var(--learn)}
+.kcard .pad{margin:6px auto 0}
+.les-pass{margin:0 0 8px;font-size:14px;color:var(--muted)}
+.les-pass b{color:var(--ai)}
 </style>
 </head>
 <body>
@@ -770,34 +777,7 @@ function kanjiInfoHTML(k){
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-say]"); if(b) speak([b.dataset.say]);});
 
-function renderKanjiCard(noAudio){
-  if(!isKW(cur)) return renderKanjiRec(noAudio);
-  const k=kOf(cur), s=st(cur), W=isKW(cur); renderCounts();
-  const kind=W?`<span class="chip kind">Écriture</span>`:`<span class="chip kind">Lecture</span>`;
-  let html=`<article class="card kcard fade" aria-live="polite"><div class="tagline"><span>${statusChip(s)} ${kind}</span><span class="num">${k[8]} trait${k[8]>1?"s":""}</span></div>`;
-  if(!W){
-    html+=`<div class="kbig">${k[0]}</div>`;
-    if(shown) html+=`<p class="meaning">${esc(k[1])}</p>${kanjiInfoHTML(k)}<div class="svg-wrap">${kanjiSVG(k)}<button class="ghost sm" id="replay">Rejouer l'ordre des traits</button></div>`;
-    else html+=`<p class="kq">Que veut dire ce kanji ? Comment le lit-on ?</p>`;
-  } else {
-    const ex=k[7][0], blank=esc(ex[0]).split(k[0]).join(`<span class="blank">◯</span>`);
-    html+=`<p class="kq">Écris le kanji qui veut dire</p><p class="meaning big">${esc(k[1])}</p>
-      <p class="kprompt"><span class="kp-w">${blank}</span><span class="kp-r">${esc(ex[1])} · ${esc(ex[2])}</span></p>
-      <div class="write-row${shown?" two":""}">
-        <figure><canvas class="pad" id="padMain" aria-label="Zone d'écriture"></canvas>${shown?"<figcaption>Ton tracé</figcaption>":""}</figure>
-        ${shown?`<figure>${kanjiSVG(k,"model")}<figcaption>Modèle</figcaption></figure>`:""}
-      </div>
-      ${shown?`<button class="ghost sm" id="replay">Rejouer l'ordre des traits</button>`:padTools("padMain")}
-      ${shown?`<div class="kbig sm">${k[0]}</div>${kanjiInfoHTML(k)}<p class="tip">Note-toi « Correct » seulement si tu as écrit tous les traits, à peu près dans le bon ordre.</p>`:""}`;
-  }
-  html+=`</article>`;
-  $("#view").innerHTML=html; $("#stage").scrollTop=0;
-  if(W){ if(!pad||pad.id!==cur) pad={id:cur,strokes:[]};
-    PADS.padMain=makePad($("#padMain"),pad.strokes,{readOnly:shown}); }
-  const svg=document.querySelector(".kcard .ksvg"); if(shown&&svg){ animateStrokes(svg); $("#replay").onclick=()=>animateStrokes(svg); }
-  renderAnswerBar();
-  if(shown&&S.cfg.autoplay&&!noAudio) speak([k[7][0][1]]);
-}
+function renderKanjiCard(noAudio){ return isKW(cur)?renderKanjiWrite(noAudio):renderKanjiRec(noAudio); }
 function renderAnswerBar(){
   const a=$("#answer"), inner=$("#answerInner"); a.hidden=false;
   if(!shown){ inner.innerHTML=`<button class="show-btn" id="showBtn">Afficher la réponse</button><div class="kbd">Espace : afficher</div>`; $("#showBtn").onclick=reveal; return; }
@@ -900,14 +880,15 @@ function sheetKanji(i){
     ${kanjiInfoHTML(k)}
     <div class="box practice"><h4>Entraîne-toi à l'écrire</h4>
       <label class="trace"><input type="checkbox" class="switch" id="traceTgl" checked> Modèle en transparence</label>
-      <div class="practice-pad" id="practiceWrap">${kanjiSVG(k,"trace-under")}<canvas class="pad" id="padPractice" aria-label="Zone d'entraînement"></canvas></div>
-      ${padTools("padPractice")}
-      <p class="tip">Trace d'abord par-dessus le modèle, puis décoche-le et écris de mémoire.</p>
+      ${checkPadHTML("padPractice")}
+      <div class="pad-tools"><button class="ghost sm" id="pHint">Indice</button><button class="ghost sm" id="pReset">Recommencer</button></div>
+      <p class="tip">Chaque trait est vérifié : position, sens et ordre. Trace d'abord sur le modèle, puis décoche-le et écris de mémoire.</p>
     </div>
     <div class="pad-tools"><button class="ghost sm" id="suspK">${r.susp?"Réactiver ce kanji":"Suspendre ce kanji (je le connais)"}</button></div>`;
   const svg=$("#sheetBody .kdetail .ksvg"); animateStrokes(svg); $("#replay2").onclick=()=>animateStrokes(svg);
-  PADS.padPractice=makePad($("#padPractice"),[]);
-  $("#traceTgl").onchange=e=>$("#practiceWrap").classList.toggle("no-trace",!e.target.checked);
+  const pp=PADS.padPractice=makeCheckPad($("#padPractice"),k,{guide:true,onMsg:padMsgFn("padPractice")});
+  $("#traceTgl").onchange=e=>{pp.setGuide(e.target.checked);pp.reset();};
+  $("#pHint").onclick=()=>pp.hint(); $("#pReset").onclick=()=>pp.reset();
   $("#suspK").onclick=()=>{const on=!st(KR+i).susp; for(const id of [KR+i,KW+i]){S.cards[id]={...st(id),susp:on?1:0,mod:Date.now()}; changed(id);} sheetKanji(i);
     toast(on?"Kanji suspendu : il ne sera plus proposé.":"Kanji réactivé.");};
 }
@@ -1174,11 +1155,17 @@ function renderLessonPage(){
   inner.innerHTML=`<div class="les-nav"><button class="ghost" id="lPrev" ${L.k===0&&L.page===0?"disabled":""}>Précédent</button><button class="show-btn" id="lNext">${last?"Commencer le quiz":"Suivant"}</button></div>`;
   $("#lPrev").onclick=()=>lessonMove(-1); $("#lNext").onclick=()=>lessonMove(1);
 }
-/* tracé pendant la leçon (remplacé par la vérification trait par trait au bloc C) */
-function lessonPadHTML(k){ return `<label class="trace"><input type="checkbox" class="switch" id="traceTgl" checked> Modèle en transparence</label>
-  <div class="practice-pad" id="practiceWrap">${kanjiSVG(k,"trace-under")}<canvas class="pad" id="padPractice" aria-label="Zone d'entraînement"></canvas></div>
-  ${padTools("padPractice")}<p class="tip">Trace-le une fois sur le modèle, puis décoche le modèle et écris-le de mémoire.</p>`; }
-function lessonPadInit(k){ PADS.padPractice=makePad($("#padPractice"),[]); $("#traceTgl").onchange=e=>$("#practiceWrap").classList.toggle("no-trace",!e.target.checked); }
+/* tracé pendant la leçon : 1) sur le modèle, trait suivant indiqué ; 2) de mémoire */
+function lessonPadHTML(k){ const pass=(LES.wp&&LES.wp[LES.k])||0;
+  return `<p class="les-pass">${pass===0?"<b>1/2</b> · Trace sur le modèle, trait par trait":pass===1?"<b>2/2</b> · Maintenant de mémoire, sans modèle":"✓ Écrit deux fois. Tu peux passer à la suite."}</p>
+  ${checkPadHTML("padPractice")}<div class="pad-tools"><button class="ghost sm" id="pHint">Indice</button><button class="ghost sm" id="pReset">Recommencer</button></div>`; }
+function lessonPadInit(k){
+  const L=LES; L.wp=L.wp||{}; const pass=L.wp[L.k]||0;
+  const pp=PADS.padPractice=makeCheckPad($("#padPractice"),k,{guide:pass===0,hintNext:pass===0,onMsg:padMsgFn("padPractice"),
+    onDone:()=>{ if(pass<2){ setTimeout(()=>{ if(!LES||LES.phase!=="learn"||LES.page!==2) return; L.wp[L.k]=pass+1; renderLessonPage(); },700); } }});
+  if(pass>=2) pp.reveal();
+  $("#pHint").onclick=()=>pp.hint(); $("#pReset").onclick=()=>pp.reset();
+}
 function lessonMove(d){
   const L=LES; if(L.phase!=="learn") return;
   let p=L.page+d, k=L.k;
@@ -1283,6 +1270,144 @@ function renderKanjiRec(noAudio){
     if(S.cfg.autoplay&&!noAudio) speak([Q.ex[1]]);
   }
 }
+
+/* ===================== Bloc C : écriture vérifiée trait par trait ===================== */
+let _sampler=null;
+const SVGNS="http://www.w3.org/2000/svg";
+function modelStrokes(k){
+  if(k._ms) return k._ms;
+  if(!_sampler){ _sampler=document.createElementNS(SVGNS,"svg"); _sampler.setAttribute("width","1"); _sampler.setAttribute("height","1");
+    _sampler.style.cssText="position:absolute;left:-9999px;top:0;width:1px;height:1px;overflow:hidden"; document.body.appendChild(_sampler); }
+  k._ms=k[9].map(d=>{ const p=document.createElementNS(SVGNS,"path"); p.setAttribute("d",d); _sampler.appendChild(p);
+    const L=p.getTotalLength(), n=Math.max(8,Math.ceil(L/1.5)), pts=[];
+    for(let i=0;i<=n;i++){const q=p.getPointAtLength(L*i/n); pts.push([q.x,q.y])}
+    p.remove(); return pts; });
+  return k._ms;
+}
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+function polyLen(p){let L=0;for(let i=1;i<p.length;i++)L+=dist(p[i],p[i-1]);return L}
+function centroid(p){let x=0,y=0;for(const q of p){x+=q[0];y+=q[1]}return [x/p.length,y/p.length]}
+function resample(pts,N=24){
+  if(!pts.length) return [];
+  const p=pts.map(q=>q.slice()), L=polyLen(p);
+  if(L===0) return Array.from({length:N},()=>p[0].slice());
+  const I=L/(N-1), out=[p[0].slice()]; let D=0;
+  for(let i=1;i<p.length;i++){ const d=dist(p[i],p[i-1]);
+    if(D+d>=I&&d>0){ const t=(I-D)/d, q=[p[i-1][0]+t*(p[i][0]-p[i-1][0]),p[i-1][1]+t*(p[i][1]-p[i-1][1])]; out.push(q); p.splice(i,0,q); D=0; }
+    else D+=d; }
+  while(out.length<N) out.push(p[p.length-1].slice());
+  return out.slice(0,N);
+}
+/* compare un trait tracé (unités KanjiVG 109×109) au trait attendu */
+function strokeMatch(u,m,off=[0,0],loose=false){
+  const N=24, uu=resample(u.map(q=>[q[0]-off[0],q[1]-off[1]]),N), mm=resample(m,N);
+  const Lu=polyLen(resample(u,16)), Lm=polyLen(m);
+  const mean=(a,b)=>a.reduce((s,q,i)=>s+dist(q,b[i]),0)/a.length;
+  const d=mean(uu,mm), dr=mean(uu.slice().reverse(),mm);
+  if(Lm<14){ const ok=dist(centroid(uu),centroid(mm))<14&&Lu<40; return {ok,d}; }
+  const tol=Math.min(21,Math.max(11,8+Lm*0.13))*(loose?1.4:1), ratio=Lu/Lm;
+  let ok=d<tol&&dist(uu[0],mm[0])<tol*1.6&&dist(uu[N-1],mm[N-1])<tol*1.6&&ratio>0.45&&ratio<2.1;
+  const vu=[uu[N-1][0]-uu[0][0],uu[N-1][1]-uu[0][1]], vm=[mm[N-1][0]-mm[0][0],mm[N-1][1]-mm[0][1]], nm=Math.hypot(...vm), nu=Math.hypot(...vu);
+  if(ok&&nm>5&&nu>3&&(vu[0]*vm[0]+vu[1]*vm[1])/(nm*nu)<0.25) return {ok:false,d,reversed:true};
+  return {ok,d,reversed:!ok&&dr<tol&&dr<d*0.7};
+}
+/* trait attendu M[i] ; refuse si le tracé ressemble nettement plus à un autre trait pas encore écrit */
+function strokeCheck(u,M,i,off,loose){
+  const r=strokeMatch(u,M[i],off,loose); if(!r.ok) return r;
+  for(let j=i+1;j<M.length;j++){ const o=strokeMatch(u,M[j],off,loose); if(o.ok&&o.d<r.d*0.75) return {ok:false,order:true,d:r.d}; }
+  return r;
+}
+function makeCheckPad(canvas,k,o={}){
+  const M=modelStrokes(k), ctx=canvas.getContext("2d");
+  const st0=o.state||{idx:0,mistakes:0,miss:0,hint:false,done:false,gaveUp:false,off:[0,0],offs:[]};
+  const P=st0; let cur=null, flash=null, guide=!!o.guide;
+  const css=()=>{const cs=getComputedStyle(document.body);return {ink:cs.color,line:cs.getPropertyValue("--line").trim()||"#ccc",ai:cs.getPropertyValue("--ai").trim()||"#36c",bad:cs.getPropertyValue("--learn").trim()||"#c33"}};
+  let sc=1;
+  function size(){const r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1; canvas.width=Math.max(1,Math.round(r.width*dpr)); canvas.height=Math.max(1,Math.round(r.height*dpr)); sc=canvas.width/109; draw();}
+  function poly(pts,w,color,alpha=1){ if(!pts||!pts.length) return; ctx.save(); ctx.globalAlpha=alpha; ctx.strokeStyle=color; ctx.lineWidth=w*sc; ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.beginPath(); ctx.moveTo(pts[0][0]*sc,pts[0][1]*sc); if(pts.length===1) ctx.lineTo(pts[0][0]*sc+0.1,pts[0][1]*sc);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0]*sc,pts[i][1]*sc); ctx.stroke(); ctx.restore(); }
+  function draw(){
+    const c=css(), W=canvas.width; ctx.clearRect(0,0,W,canvas.height);
+    ctx.save(); ctx.strokeStyle=c.line; ctx.lineWidth=Math.max(1,W/300); ctx.setLineDash([W/40,W/40]); ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,W); ctx.moveTo(0,W/2); ctx.lineTo(W,W/2); ctx.stroke(); ctx.restore();
+    if(guide) M.forEach((m,j)=>{ if(j>=P.idx) poly(m,4.2,c.ai,.16); });
+    for(let j=0;j<P.idx;j++) poly(M[j],4.4,c.ink);
+    if(!P.done&&P.idx<M.length&&(P.hint||o.hintNext)){ const m=M[P.idx]; poly(m,4.6,c.ai,.42); ctx.save(); ctx.fillStyle=c.ai; ctx.beginPath(); ctx.arc(m[0][0]*sc,m[0][1]*sc,3.2*sc,0,7); ctx.fill(); ctx.restore(); }
+    if(cur) poly(cur,4.4,c.ink); if(flash) poly(flash,4.4,c.bad,.9);
+  }
+  const pt=e=>{const r=canvas.getBoundingClientRect();return [Math.min(109,Math.max(0,(e.clientX-r.left)/r.width*109)),Math.min(109,Math.max(0,(e.clientY-r.top)/r.height*109))]};
+  const say=(msg,kind)=>o.onMsg&&o.onMsg(msg,kind,P);
+  function evaluate(u){
+    if(P.done) return;
+    const r=strokeCheck(u,M,P.idx,P.off,P.offs.length===0);
+    if(r.ok){
+      const cu=centroid(resample(u,24)), cm=centroid(resample(M[P.idx],24)); P.offs.push([cu[0]-cm[0],cu[1]-cm[1]]);
+      const av=P.offs.reduce((a,q)=>[a[0]+q[0],a[1]+q[1]],[0,0]).map(x=>Math.max(-12,Math.min(12,x/P.offs.length))); P.off=av;
+      P.idx++; P.miss=0; P.hint=false;
+      if(P.idx>=M.length){ P.done=true; draw(); say(P.mistakes?`Terminé, avec ${P.mistakes} erreur${P.mistakes>1?"s":""}.`:"Parfait, aucune erreur !","ok"); o.onDone&&o.onDone(P); return; }
+      say(`Trait ${P.idx+1} sur ${M.length}`,"info");
+    } else {
+      P.mistakes++; P.miss++;
+      let msg="Pas tout à fait.";
+      if(r.reversed) msg="Bon trait, mais tracé dans le mauvais sens.";
+      else if(r.order) msg="Ce trait vient plus tard : respecte l'ordre.";
+      else for(let j=P.idx+1;j<M.length;j++) if(strokeMatch(u,M[j],P.off).ok){ msg="Ce trait vient plus tard : respecte l'ordre."; break; }
+      if(P.miss>=2&&!P.hint){ P.hint=true; msg+=" Regarde l'indice."; }
+      flash=u; setTimeout(()=>{flash=null;draw()},450); say(msg,"bad");
+    }
+    draw();
+  }
+  if(!o.readOnly){
+    canvas.addEventListener("pointerdown",e=>{ if(P.done) return; e.preventDefault(); try{canvas.setPointerCapture(e.pointerId)}catch(_){} cur=[pt(e)]; draw(); });
+    canvas.addEventListener("pointermove",e=>{ if(!cur) return; e.preventDefault(); const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e]; for(const ev of evs) cur.push(pt(ev)); draw(); });
+    const end=()=>{ if(!cur) return; const u=cur; cur=null; evaluate(u); };
+    canvas.addEventListener("pointerup",end); canvas.addEventListener("pointercancel",()=>{cur=null;draw()});
+  }
+  size(); if(!P.done) say(`Trait ${P.idx+1} sur ${M.length}`,"info");
+  return {state:P,size,draw,
+    hint(){ if(P.done||P.hint) return; P.hint=true; P.mistakes++; draw(); say("Indice affiché (compte comme une erreur).","info"); },
+    reveal(){ if(P.done) return; P.gaveUp=true; P.idx=M.length; P.done=true; draw(); o.onDone&&o.onDone(P); },
+    reset(){ Object.assign(P,{idx:0,mistakes:0,miss:0,hint:false,done:false,gaveUp:false,off:[0,0],offs:[]}); draw(); say(`Trait 1 sur ${M.length}`,"info"); },
+    setGuide(b){ guide=b; draw(); } };
+}
+function checkPadHTML(id,extra=""){ return `<canvas class="pad" id="${id}" aria-label="Zone d'écriture"></canvas><p class="padmsg" id="${id}Msg" aria-live="polite"></p>${extra}`; }
+function padMsgFn(id){ return (msg,kind)=>{ const el=document.getElementById(id+"Msg"); if(el){ el.textContent=msg; el.className="padmsg "+(kind||""); } }; }
+
+/* --- carte d'écriture en révision --- */
+function writeGrade(P){ if(P.gaveUp||P.mistakes>=3) return [1,2]; if(P.mistakes>0) return [2,3]; return [3,4]; }
+function renderKanjiWrite(noAudio){
+  const k=kOf(cur), s=st(cur); renderCounts();
+  if(!pad||pad.id!==cur) pad={id:cur,state:null};
+  const ex=k[7][0], blank=esc(ex[0]).split(k[0]).join(`<span class="blank">◯</span>`);
+  let html=`<article class="card kcard fade" aria-live="polite"><div class="tagline"><span>${statusChip(s)} <span class="chip kind">Écriture</span></span><span class="num">${k[8]} trait${k[8]>1?"s":""}</span></div>
+    <p class="kq">Écris le kanji qui veut dire</p><p class="meaning big">${esc(k[1])}</p>
+    <p class="kprompt"><span class="kp-w">${blank}</span><span class="kp-r">${esc(ex[1])} · ${esc(ex[2])}</span></p>`;
+  if(!shown){
+    html+=`${checkPadHTML("padMain")}<div class="pad-tools"><button class="ghost sm" id="wHint">Indice</button></div>`;
+  } else {
+    const P=pad.state||{mistakes:0,gaveUp:true};
+    const sum=P.gaveUp?`<p class="res bad"><span class="res-l">✗ Modèle affiché</span><span class="res-v">À revoir</span></p>`:P.mistakes?`<p class="res bad"><span class="res-l">${P.mistakes} erreur${P.mistakes>1?"s":""}</span><span class="res-v">${P.mistakes>=3?"À revoir":"Difficile"}</span></p>`:`<p class="res ok"><span class="res-l">✓ Sans faute</span><span class="res-v">tous les traits dans l'ordre</span></p>`;
+    html+=`<div class="results">${sum}</div><div class="svg-wrap">${kanjiSVG(k)}<button class="ghost sm" id="replay">Rejouer l'ordre des traits</button></div>
+      <div class="kbig sm">${k[0]}</div>${kanjiInfoHTML(k)}`;
+  }
+  html+=`</article>`;
+  $("#view").innerHTML=html; $("#stage").scrollTop=0;
+  const a=$("#answer"), inner=$("#answerInner"); a.hidden=false;
+  if(!shown){
+    const pp=PADS.padMain=makeCheckPad($("#padMain"),k,{state:pad.state,onMsg:padMsgFn("padMain"),
+      onDone:P=>{ pad.state=P; setTimeout(()=>{ if(cur===pad.id&&!shown){ shown=true; renderKanjiWrite(); } },P.gaveUp?0:650); }});
+    pad.state=pp.state;
+    $("#wHint").onclick=()=>pp.hint();
+    inner.innerHTML=`<button class="ghost wide" id="wGive">Je ne sais pas · montrer le modèle</button>`;
+    $("#wGive").onclick=()=>pp.reveal();
+  } else {
+    const [g1,g2]=writeGrade(pad.state||{gaveUp:true}), L=["","À revoir","Difficile","Correct","Facile"];
+    inner.innerHTML=`<div class="grades two">${gradeBtnHTML(g1,L[g1],"pri","kPrimary")}${gradeBtnHTML(g2,L[g2])}</div><div class="kbd">Entrée : ${L[g1]}</div>`;
+    inner.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>answer(+b.dataset.g));
+    const svg=$(".kcard .ksvg"); animateStrokes(svg); $("#replay").onclick=()=>animateStrokes(svg);
+    if(S.cfg.autoplay&&!noAudio) speak([ex[1]]);
+  }
+}
 /* ---------- misc ---------- */
 let toastT=null; function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
 document.addEventListener("keydown",e=>{
@@ -1292,6 +1417,7 @@ document.addEventListener("keydown",e=>{
   if(view==="lesson"&&LES){ if(LES.phase==="learn"){ if(e.key==="ArrowRight"||e.key==="Enter"||e.key===" "){e.preventDefault();lessonMove(1)} else if(e.key==="ArrowLeft") lessonMove(-1); }
     else if(LES.phase==="quiz"&&LES.answered&&(e.key==="Enter"||e.key===" ")){e.preventDefault(); $("#qNext")&&$("#qNext").click();} return; }
   if(view!=="study"||cur==null){ if(e.key===" "&&view==="home"&&$("#studyBtn")&&!$("#studyBtn").disabled){e.preventDefault();startStudy()} return; }
+  if(isKW(cur)){ if(shown&&(e.key===" "||e.key==="Enter")){e.preventDefault(); $("#kPrimary")&&$("#kPrimary").click();} else if(e.key==="z"||e.key==="Z") undo(); return; }
   if(isK(cur)&&!isKW(cur)){ if(KQ&&KQ.id===cur&&KQ.stage==="done"&&(e.key===" "||e.key==="Enter")){e.preventDefault(); $("#kPrimary")&&$("#kPrimary").click();} else if(e.key==="z"||e.key==="Z") undo(); return; }
   if(e.key===" "||e.key==="Enter"){e.preventDefault(); shown?answer(3):reveal()}
   else if(shown&&["1","2","3","4"].includes(e.key)) answer(+e.key);
