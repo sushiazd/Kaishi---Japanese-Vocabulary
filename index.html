@@ -325,6 +325,18 @@ details.box div{margin-top:6px}
 .shake{animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @media (prefers-reduced-motion:reduce){.shake{animation:none}}
+
+/* ---------- résultats des révisions tapées ---------- */
+.results{display:grid;gap:6px;margin:12px 0 4px;text-align:left}
+.res{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0;padding:8px 12px;border-radius:10px;font-size:14.5px}
+.res.ok{background:color-mix(in srgb,var(--rev) 12%,var(--surface));color:var(--ink)}
+.res.bad{background:color-mix(in srgb,var(--learn) 10%,var(--surface));color:var(--ink)}
+.res-l{font-weight:700}
+.res.ok .res-l{color:var(--rev)} .res.bad .res-l{color:var(--learn)}
+.grades.two{grid-template-columns:1fr 1fr}
+.grade.pri{border-width:2px;border-color:var(--k)}
+.grade.typo small{color:var(--muted)}
+.ghost.wide{width:100%;padding:14px}
 </style>
 </head>
 <body>
@@ -655,7 +667,7 @@ function nextDueLine(){
 }
 function startStudy(){view="study";sinceNew=0;nextCard()}
 function nextCard(){
-  const i=pick(); pad=null;
+  const i=pick(); pad=null; KQ=null;
   if(i==null){cur=null;renderDone();return}
   cur=i; shown=false; renderCard();
 }
@@ -751,6 +763,7 @@ function kanjiInfoHTML(k){
   return `${readingsHTML(k)}
     <div class="extras">
       <div class="box"><h4>Astuce pour retenir</h4>${esc(k[5])}<div class="parts">Éléments : ${esc(k[4])}</div></div>
+      ${k[13]?`<div class="box"><h4>Astuce pour la lecture</h4>${esc(k[13])}</div>`:""}
       <div class="box"><h4>Mots à connaître</h4>${examplesHTML(k)}</div>
       ${k[6]?`<div class="box"><h4>Ordre des traits</h4>${esc(k[6])}</div>`:""}
     </div>`;
@@ -758,6 +771,7 @@ function kanjiInfoHTML(k){
 document.addEventListener("click",e=>{const b=e.target.closest("[data-say]"); if(b) speak([b.dataset.say]);});
 
 function renderKanjiCard(noAudio){
+  if(!isKW(cur)) return renderKanjiRec(noAudio);
   const k=kOf(cur), s=st(cur), W=isKW(cur); renderCounts();
   const kind=W?`<span class="chip kind">Écriture</span>`:`<span class="chip kind">Lecture</span>`;
   let html=`<article class="card kcard fade" aria-live="polite"><div class="tagline"><span>${statusChip(s)} ${kind}</span><span class="num">${k[8]} trait${k[8]>1?"s":""}</span></div>`;
@@ -812,7 +826,7 @@ function undo(){
   const u=undoStack.pop(); if(!u){toast("Rien à annuler.");return}
   S.cards[u.idx]=u.prev?{...u.prev,mod:Date.now()}:{...NEW,mod:Date.now()};
   S[u.dkey]=u.daily; const t=today(); if(u.hist) S[u.hkey][t]=u.hist; else delete S[u.hkey][t];
-  sinceNew=u.sinceNew; changed(u.idx); deck=deckOf(u.idx); renderBrand(); view="study"; cur=u.idx; shown=false; pad=null; renderCard(); toast("Dernière réponse annulée.");
+  sinceNew=u.sinceNew; changed(u.idx); deck=deckOf(u.idx); renderBrand(); view="study"; cur=u.idx; shown=false; pad=null; KQ=null; renderCard(); toast("Dernière réponse annulée.");
 }
 function bury(){ if(cur==null) return; const c={...st(cur),bury:today(),mod:Date.now()}; S.cards[cur]=c; changed(cur); toast("Carte mise de côté jusqu'à demain."); nextCard(); }
 function suspend(idx){ const c={...st(idx),susp:st(idx).susp?0:1,mod:Date.now()}; S.cards[idx]=c; changed(idx); return c.susp; }
@@ -1091,21 +1105,23 @@ const wordHL=(w,k)=>esc(w).split(k).join(`<b class="hl">${k}</b>`);
 function qFieldHTML(kind){
   const r=kind==="r";
   return `<form class="qform" id="qform" autocomplete="off">
-    <input id="qin" class="qin${r?" qin-r":""}" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" lang="${r?"ja":"fr"}" placeholder="${r?"Lecture (tape en romaji : yasumu)":"Sens en français"}" aria-label="${r?"Lecture":"Sens"}">
+    <input id="qin" class="qin${r?" qin-r":""}" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" lang="${r?"ja":"fr"}" placeholder="${r?"en romaji : yasumu":"en français"}" aria-label="${r?"Lecture":"Sens"}">
     <button class="qgo" aria-label="Valider">${arrowIco()}</button></form>
     <div class="qfb" id="qfb" aria-live="polite"></div>`;
 }
 const arrowIco=()=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
-/* branche le champ ; onAnswer(valeur) doit renvoyer {ok, html} ; retourne une fonction pour forcer la saisie */
+/* branche le champ ; onAnswer(valeur) doit renvoyer {ok, html} ; submit() force une réponse vide (« je ne sais pas ») */
 function wireQuestion(kind,onAnswer){
-  const f=$("#qform"), inp=$("#qin"); if(!f) return;
+  const f=$("#qform"), inp=$("#qin"); if(!f) return {submit(){}};
   if(kind==="r") bindKana(inp);
   setTimeout(()=>{try{inp.focus({preventScroll:true})}catch(e){}},60);
-  f.onsubmit=e=>{e.preventDefault(); if(f.dataset.done) return;
-    const v=kind==="r"?toKana(inp.value,true):inp.value; if(!v.trim()){ inp.classList.add("shake"); setTimeout(()=>inp.classList.remove("shake"),400); return; }
+  const go=force=>{ if(f.dataset.done) return;
+    const v=kind==="r"?toKana(inp.value,true):inp.value;
+    if(!v.trim()&&!force){ inp.classList.add("shake"); setTimeout(()=>inp.classList.remove("shake"),400); return; }
     inp.value=v; const res=onAnswer(v); f.dataset.done="1"; inp.readOnly=true;
-    f.classList.add(res.ok?"is-ok":"is-bad"); $("#qfb").innerHTML=res.html||"";
-  };
+    f.classList.add(res.ok?"is-ok":"is-bad"); $("#qfb").innerHTML=res.html||""; };
+  f.onsubmit=e=>{e.preventDefault();go(false)};
+  return {submit:()=>go(true)};
 }
 
 /* ===================== Bloc A : leçons ===================== */
@@ -1229,6 +1245,44 @@ function renderLessonDone(){
   if($("#goRev")) $("#goRev").onclick=()=>{LES=null;startStudy()};
   $("#homeBtn").onclick=()=>{LES=null;renderHome()};
 }
+
+/* ===================== Bloc B : révisions tapées ===================== */
+let KQ=null;
+function kqFor(id){ if(!KQ||KQ.id!==id){ const k=kOf(id), s=st(id); KQ={id,stage:"m",mOk:null,rOk:null,mAns:"",rAns:"",ex:k[7][s.reps%k[7].length]}; } return KQ; }
+function gradeBtnHTML(btn,label,cls,id){ const now=Date.now(); return `<button class="grade g${btn} ${cls||""}" ${id?`id="${id}"`:""} data-g="${btn}"><small class="num">${fmtIvl(next(cur,st(cur),btn,now),now)}</small><span>${label}</span></button>`; }
+function resLine(label,ok,txt){ return `<p class="res ${ok?"ok":"bad"}"><span class="res-l">${ok?"✓":"✗"} ${label}</span><span class="res-v">${txt}</span></p>`; }
+function renderKanjiRec(noAudio){
+  const k=kOf(cur), s=st(cur), Q=kqFor(cur); renderCounts();
+  let html=`<article class="card kcard fade" aria-live="polite"><div class="tagline"><span>${statusChip(s)} <span class="chip kind">Lecture</span></span><span class="num">${Q.stage==="m"?"1/2 · sens":Q.stage==="r"?"2/2 · lecture":""}</span></div>`;
+  if(Q.stage==="m") html+=`<div class="kbig">${k[0]}</div><p class="kq">Que veut dire ce kanji ?</p>${qFieldHTML("m")}`;
+  else if(Q.stage==="r") html+=`<div class="qword">${wordHL(Q.ex[0],k[0])}</div><p class="kq">Comment se lit ce mot ?</p>${qFieldHTML("r")}`;
+  else html+=`<div class="kbig sm">${k[0]}</div><p class="meaning">${esc(k[1])}</p>
+      <div class="results">${resLine("Sens",Q.mOk,Q.mOk?esc(Q.mAns):`${esc(Q.mAns)||"—"} → <b>${esc(k[1])}</b>`)}${resLine(`Lecture de ${esc(Q.ex[0])}`,Q.rOk,Q.rOk?esc(Q.ex[1]):`${esc(Q.rAns)||"—"} → <b>${esc(Q.ex[1])}</b>`)}</div>
+      ${kanjiInfoHTML(k)}<div class="svg-wrap">${kanjiSVG(k)}<button class="ghost sm" id="replay">Rejouer l'ordre des traits</button></div>`;
+  html+=`</article>`;
+  $("#view").innerHTML=html; $("#stage").scrollTop=0;
+  const a=$("#answer"), inner=$("#answerInner"); a.hidden=false;
+  if(Q.stage!=="done"){
+    inner.innerHTML=`<button class="ghost wide" id="kIdk">Je ne sais pas</button>`;
+    const W=wireQuestion(Q.stage,v=>{
+      const r=Q.stage==="m"?checkMeaning(k,v):checkReading(Q.ex[1],v);
+      if(Q.stage==="m"){Q.mOk=!!r.ok;Q.mAns=v}else{Q.rOk=!!r.ok;Q.rAns=v; if(r.ok) speak([Q.ex[1]]);}
+      inner.innerHTML=`<button class="show-btn" id="kNext">Continuer</button>`;
+      $("#kNext").onclick=()=>{ if(Q.stage==="m") Q.stage="r"; else {Q.stage="done"; shown=true;} renderKanjiRec(Q.stage==="done"&&Q.rOk); };
+      setTimeout(()=>{try{$("#kNext").focus({preventScroll:true})}catch(e){}},30);
+      const sol=Q.stage==="m"?esc(k[1]):`${esc(Q.ex[0])} se lit <b>${esc(Q.ex[1])}</b> · ${esc(Q.ex[2])}`;
+      let hint=""; if(r.latin) hint="Écris la lecture en romaji complet (ex. : yasumu → やすむ). "; else if(r.close) hint="Presque ! ";
+      return {ok:r.ok,html:r.ok?`<p class="ok">Correct${r.typo?" (attention à l'orthographe)":""}.</p><p class="qsol">${sol}</p>`:`<p class="bad">${hint}${r.empty?"Pas de réponse.":"Pas tout à fait."}</p><p class="qsol">${Q.stage==="m"?"Réponse : <b>"+sol+"</b>":sol}</p>`};
+    });
+    $("#kIdk").onclick=()=>W.submit();
+  } else {
+    const ok=Q.mOk&&Q.rOk;
+    inner.innerHTML=`<div class="grades two">${ok?gradeBtnHTML(3,"Correct","pri","kPrimary")+gradeBtnHTML(4,"Facile"):gradeBtnHTML(1,"À revoir","pri","kPrimary")+`<button class="grade g3 typo" data-g="3"><small>J'avais juste</small><span>Faute de frappe</span></button>`}</div><div class="kbd">Entrée : ${ok?"Correct":"À revoir"}</div>`;
+    inner.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>answer(+b.dataset.g));
+    const svg=$(".kcard .ksvg"); animateStrokes(svg); $("#replay").onclick=()=>animateStrokes(svg);
+    if(S.cfg.autoplay&&!noAudio) speak([Q.ex[1]]);
+  }
+}
 /* ---------- misc ---------- */
 let toastT=null; function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
 document.addEventListener("keydown",e=>{
@@ -1238,6 +1292,7 @@ document.addEventListener("keydown",e=>{
   if(view==="lesson"&&LES){ if(LES.phase==="learn"){ if(e.key==="ArrowRight"||e.key==="Enter"||e.key===" "){e.preventDefault();lessonMove(1)} else if(e.key==="ArrowLeft") lessonMove(-1); }
     else if(LES.phase==="quiz"&&LES.answered&&(e.key==="Enter"||e.key===" ")){e.preventDefault(); $("#qNext")&&$("#qNext").click();} return; }
   if(view!=="study"||cur==null){ if(e.key===" "&&view==="home"&&$("#studyBtn")&&!$("#studyBtn").disabled){e.preventDefault();startStudy()} return; }
+  if(isK(cur)&&!isKW(cur)){ if(KQ&&KQ.id===cur&&KQ.stage==="done"&&(e.key===" "||e.key==="Enter")){e.preventDefault(); $("#kPrimary")&&$("#kPrimary").click();} else if(e.key==="z"||e.key==="Z") undo(); return; }
   if(e.key===" "||e.key==="Enter"){e.preventDefault(); shown?answer(3):reveal()}
   else if(shown&&["1","2","3","4"].includes(e.key)) answer(+e.key);
   else if(e.key==="z"||e.key==="Z") undo();
