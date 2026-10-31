@@ -95,9 +95,13 @@ function lessonsLeft(){ return Math.max(0,S.cfg.kNewPerDay-daily("kanji").n); }
 function lessonPool(){ const out=[]; for(let i=0;i<KANJI.length;i++){const r=st(KR+i); if(r.q===0&&!r.susp) out.push(i)} return out; }
 function lessonBatch(){ return lessonPool().slice(0,Math.min(5,lessonsLeft())); }
 function lessonCount(){ return Math.min(lessonsLeft(),lessonPool().length); }
+/* les leçons attendent les cartes kanji à faire maintenant (apprentissage + révisions dues) : un kanji déjà vu passe avant un nouveau */
+function lessonGate(){ const g=gather(Date.now(),"kanji"); return g.learnNow.length+g.learnSoon.length+g.rev.length; }
 function startLesson(){
   const b=lessonBatch();
   if(!b.length){ toast(lessonPool().length?"Tu as fait tes leçons du jour. Reviens demain, ou augmente la limite dans les Réglages.":"Tu as vu tous les kanji N5 !"); return; }
+  const due=lessonGate();
+  if(due){ toast(`Fais d'abord ta révision de kanji (${due} carte${due>1?"s":""}) : la leçon se débloque ensuite.`); return; }
   LES={batch:b,k:0,page:0,phase:"learn",queue:[],wrong:new Set()}; view="lesson"; cur=null; pad=null; renderLesson();
 }
 const LPAGES=["Sens","Lecture","Écriture"];
@@ -154,7 +158,7 @@ function lessonMove(d){
   let p=L.page+d, k=L.k;
   if(p>2){ if(k<L.batch.length-1){k++;p=0} else return startLessonQuiz(); }
   if(p<0){ if(k>0){k--;p=2} else return; }
-  L.k=k; L.page=p; try{speechSynthesis.cancel()}catch(e){} renderLessonPage();
+  L.k=k; L.page=p; hush(); renderLessonPage();
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-lpage]"); if(b&&LES&&LES.phase==="learn"){LES.page=+b.dataset.lpage; renderLessonPage();}});
 function shuffle(a,seed){ const r=a.slice(); for(let i=r.length-1;i>0;i--){const j=hash(seed+i*31)%(i+1); [r[i],r[j]]=[r[j],r[i]]} return r; }
@@ -205,10 +209,10 @@ function finishLesson(){
   L.phase="done"; renderLesson();
 }
 function renderLessonDone(){
-  const L=LES, more=lessonCount(), g=gather(Date.now(),"kanji"), rev=g.learnNow.length+g.rev.length;
+  const L=LES, more=lessonCount()&&!lessonGate(), g=gather(Date.now(),"kanji"), rev=g.learnNow.length+g.rev.length;
   $("#view").innerHTML=`<section class="done fade"><p class="big">${L.batch.map(i=>KANJI[i][0]).join("")}</p><h2>Leçon terminée !</h2>
-    <p>Tu reverras ces ${L.batch.length} kanji en révision dans 10 minutes${S.cfg.kWrite?", puis tu les écriras de mémoire dès demain":""}.</p>
-    <div class="links" style="justify-content:center">${more?`<button class="primary" style="width:auto" id="moreLes">Leçon suivante (${Math.min(5,more)})</button>`:""}
+    <p>Tu reverras ces ${L.batch.length} kanji en révision dans 10 minutes${S.cfg.kWrite?", puis tu les écriras de mémoire dès demain":""}.${lessonCount()?" La leçon suivante se débloque quand ils sont validés.":""}</p>
+    <div class="links" style="justify-content:center">${more?`<button class="primary" style="width:auto" id="moreLes">Leçon suivante (${Math.min(5,lessonCount())})</button>`:""}
     ${rev?`<button class="ghost" id="goRev">Révisions (${rev})</button>`:""}<button class="ghost" id="homeBtn">Accueil</button></div></section>`;
   $("#answer").hidden=true; renderCounts();
   if($("#moreLes")) $("#moreLes").onclick=startLesson;

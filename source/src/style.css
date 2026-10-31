@@ -58,7 +58,6 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid
 .c-new{color:var(--new)} .c-learn{color:var(--learn)} .c-rev{color:var(--rev)}
 .counts .on{background:color-mix(in srgb,currentColor 13%,transparent)}
 .icon-btn{border:1px solid var(--line-strong);background:var(--surface);width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--ink);flex:none}
-.icon-btn:hover{border-color:var(--ai)}
 .icon-btn svg{width:20px;height:20px}
 
 /* scène */
@@ -77,7 +76,6 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid
 .today-row strong{font:800 clamp(30px,8vw,38px)/1 var(--sans);letter-spacing:-.03em}
 .today-row small{color:var(--ink-2);font-size:13px}
 .primary{width:100%;border:1px solid var(--ai);border-radius:12px;background:var(--ai);color:var(--ai-ink);font:600 16px/1.2 var(--sans);min-height:52px;padding:12px 16px}
-.primary:hover:not(:disabled){background:var(--ai-hover)}
 .primary:disabled{opacity:.45;cursor:default}
 .meter{display:grid;gap:8px;padding-top:16px;border-top:1px solid var(--line)}
 .meter-top{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2)}
@@ -89,12 +87,10 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid
 .legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0;background:var(--k)}
 .links{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line-strong);background:var(--surface);border-radius:10px;min-height:40px;padding:8px 16px;font:600 14px/1.2 var(--sans);color:var(--ink)}
-.ghost:hover:not(:disabled){border-color:var(--ai)}
 
 /* cartes-outils de l'accueil (comme les matières d'EsirPrac) */
 .tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
 .tool{position:relative;display:grid;gap:8px;align-content:start;padding:18px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);text-align:left;transition:border-color .15s,transform .15s;min-width:0}
-.tool:hover{border-color:var(--ai);transform:translateY(-2px)}
 .tool .ic{width:40px;height:40px;border-radius:11px;background:var(--ai-soft);color:var(--ai);display:grid;place-items:center;font:600 20px/1 var(--f-jp-display)}
 .tool h2{font:600 18px/1.2 var(--serif)}
 .tool p{color:var(--ink-2);font-size:13.5px;line-height:1.45}
@@ -125,7 +121,6 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid
 .trans{color:var(--ink-2);margin:6px 0 0;font:italic 17px/1.5 var(--serif)}
 .audio{display:flex;justify-content:center;gap:8px;margin-top:16px;flex-wrap:wrap}
 .audio button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-strong);background:var(--surface);border-radius:999px;min-height:36px;padding:0 14px;font:600 13.5px/1 var(--sans)}
-.audio button:hover{border-color:var(--ai)}
 .audio svg{width:14px;height:14px;color:var(--ai)}
 .extras{text-align:left;margin-top:18px;display:grid;gap:10px}
 .box{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:14.5px;line-height:1.6}
@@ -146,10 +141,8 @@ details.box div{margin-top:6px}
 .answer{border-top:1px solid var(--line);background:color-mix(in srgb,var(--paper) 92%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .answer .wrap{padding-block:12px}
 .show-btn{width:100%;border:1px solid var(--ai);border-radius:12px;background:var(--ai);color:var(--ai-ink);font:600 16px/1.2 var(--sans);min-height:52px;padding:12px}
-.show-btn:hover{background:var(--ai-hover)}
 .grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .grade{border:1px solid var(--line-strong);background:var(--surface);border-radius:12px;padding:9px 4px 10px;display:grid;gap:3px;min-width:0;box-shadow:inset 0 3px 0 var(--k)}
-.grade:hover{border-color:var(--k)}
 .grade small{font:600 12px/1.2 var(--sans);color:var(--k)}
 .grade span{font:600 14.5px/1.2 var(--sans)}
 .grade:active{transform:translateY(1px)}
@@ -176,6 +169,7 @@ details.box div{margin-top:6px}
 .row label small{display:block;color:var(--muted);font-size:13px;font-weight:400}
 .row input[type=number]{width:84px;font:inherit;min-height:40px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:10px;background:var(--paper);color:var(--ink);text-align:right}
 .row input[type=range]{width:140px;accent-color:var(--ai)}
+.select{width:100%;font:inherit;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--paper);color:var(--ink)}
 .switch{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:99px;background:var(--line-strong);position:relative;flex:none;cursor:pointer;transition:background .15s}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
 .switch:checked{background:var(--ai)} .switch:checked::after{transform:translateX(18px)}
@@ -201,7 +195,6 @@ details.box div{margin-top:6px}
 .st-new{color:var(--new)} .st-learn{color:var(--learn)} .st-young{color:var(--rev)} .st-mature{color:var(--rev)} .st-susp{color:var(--muted)}
 .menu{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(62px + env(safe-area-inset-top,0px));background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;z-index:15;min-width:250px;display:grid}
 .menu button{border:0;background:none;text-align:left;padding:10px 12px;border-radius:9px;font-size:15px}
-.menu button:hover{background:var(--surface-2)}
 .menu button:disabled{opacity:.4}
 .toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;max-width:calc(100% - 32px);text-align:center;box-shadow:var(--shadow)}
 .loading{display:grid;place-items:center;height:60vh;color:var(--muted);text-align:center}
@@ -221,7 +214,6 @@ details.box div{margin-top:6px}
 
 /* ---------- bande de kanji sur l'accueil ---------- */
 .kstrip{display:flex;flex-wrap:wrap;gap:3px;margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow);width:100%;justify-content:center}
-.kstrip:hover{border-color:var(--ai)}
 .kstrip span{font-family:var(--f-kanji);font-size:19px;width:27px;height:30px;display:grid;place-items:center;border-radius:6px;color:var(--muted)}
 .kstrip .ks-new{opacity:.5}
 .kstrip .ks-learn{color:var(--learn);background:color-mix(in srgb,var(--learn) 12%,transparent);opacity:1}
@@ -245,7 +237,6 @@ details.box div{margin-top:6px}
 .parts{margin-top:6px;color:var(--muted);font-size:13.5px}
 .exlist{display:grid;gap:2px;margin-top:4px}
 .ex{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:baseline;gap:4px 10px;text-align:left;border:0;background:none;padding:6px 4px;border-radius:8px}
-.ex:hover{background:var(--surface)}
 .ex-w{font-family:var(--f-kanji);font-weight:600;font-size:19px}
 .ex-r{color:var(--muted);font-size:14px}
 .ex-m{font-size:14px;overflow:hidden;text-overflow:ellipsis}
@@ -270,7 +261,6 @@ details.box div{margin-top:6px}
 .kgroup{font:600 12px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ai);margin:20px 0 10px}
 .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
 .ktile{border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:6px 2px 7px;display:grid;justify-items:center;gap:0;min-width:0}
-.ktile:hover{border-color:var(--ai)}
 .ktile b{font-family:var(--f-kanji);font-weight:600;font-size:30px;line-height:1.2}
 .ktile small{font-size:11px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px}
 .ktile.ks-learn{border-color:var(--learn);box-shadow:inset 0 -3px 0 var(--learn)}
@@ -317,6 +307,7 @@ details.box div{margin-top:6px}
 .kbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .kbtns .primary{padding:12px 10px;font-size:15px}
 .kbtns .primary.alt{background:var(--surface-2);color:var(--muted);border-color:var(--line);opacity:1}
+.kbtns .gate{grid-column:1/-1;font-size:13px;line-height:1.45;color:var(--ink-2);text-align:center}
 .les-head{display:grid;gap:10px;margin-bottom:14px}
 .les-dots{display:flex;justify-content:center;gap:6px}
 .les-dots span{font-family:var(--f-kanji);font-size:20px;width:40px;height:40px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
@@ -378,3 +369,18 @@ details.box div{margin-top:6px}
 .pt-top{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:var(--muted)}
 .pt-top b{color:var(--ink)}
 .pt-tired{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13.5px;color:var(--ink-2)}
+
+/* survol : souris seulement. Sur iPhone, :hover reste collé là où on a tapé et surlignait le bouton du mot suivant. */
+@media (hover:hover) and (pointer:fine){
+  .icon-btn:hover{border-color:var(--ai)}
+  .primary:hover:not(:disabled){background:var(--ai-hover)}
+  .ghost:hover:not(:disabled){border-color:var(--ai)}
+  .tool:hover{border-color:var(--ai);transform:translateY(-2px)}
+  .audio button:hover{border-color:var(--ai)}
+  .show-btn:hover{background:var(--ai-hover)}
+  .grade:hover{border-color:var(--k)}
+  .menu button:hover{background:var(--surface-2)}
+  .kstrip:hover{border-color:var(--ai)}
+  .ex:hover{background:var(--surface)}
+  .ktile:hover{border-color:var(--ai)}
+}

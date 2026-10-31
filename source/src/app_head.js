@@ -2,7 +2,7 @@
 /* ---------- constants (Anki defaults) ---------- */
 const STEPS=[1,10], RELEARN=[10], GRAD_IVL=1, EASY_IVL=4, START_EASE=2500, MIN_EASE=1300,
       EASY_BONUS=1.3, HARD_MULT=1.2, MAX_IVL=36500, LEARN_AHEAD=20*60e3, LEECH=8, MATURE=21, CHUNK=100;
-const DEFAULT_CFG={newPerDay:20,revPerDay:200,autoplay:true,sentenceFront:true,showPitch:false,rate:0.9,kNewPerDay:10,kRevPerDay:200,kWrite:true,kNums:true};
+const DEFAULT_CFG={newPerDay:20,revPerDay:200,autoplay:true,sentenceFront:false,showPitch:false,rate:0.9,kNewPerDay:10,kRevPerDay:200,kWrite:true,kNums:true,voice:""};
 const KR=10000, KW=20000; // ids des cartes kanji : lecture / écriture
 const LS_KEY="kaishi-fr-v1";
 const MIN=60e3, DAY=864e5;
@@ -135,11 +135,25 @@ function renderCounts(){
 
 /* ---------- audio (synthèse vocale japonaise du navigateur) ---------- */
 let voice=null;
-function pickVoice(){try{const vs=speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang));voice=vs.find(v=>/Kyoko|O-?ren|Otoya|Hattori|Google/i.test(v.name))||vs[0]||null}catch(e){}}
-try{pickVoice();speechSynthesis.onvoiceschanged=pickVoice}catch(e){}
+/* qualité d'une voix : sur iPhone les voix téléchargées « Premium » / « Améliorée » ont ce mot dans leur voiceURI ou leur nom */
+function voiceTier(v){ const s=v.voiceURI+" "+v.name; return /premium/i.test(s)?3:/enhanced|am[ée]lior|natural|neural|online/i.test(s)?2:/Kyoko|O-?ren|Otoya|Hattori|Google/i.test(s)?1:0; }
+function jaVoices(){ try{ return speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang)).sort((a,b)=>voiceTier(b)-voiceTier(a)); }catch(e){ return []; } }
+function pickVoice(){ const vs=jaVoices(); voice=vs.find(v=>v.voiceURI===S.cfg.voice)||vs[0]||null; }
+try{pickVoice();speechSynthesis.onvoiceschanged=()=>{pickVoice(); if($("#voiceSel")) sheetSettings();}}catch(e){}
+/* iPhone : « playback » évite que le bouton silencieux coupe la voix (Safari 16.4+) ;
+   cancel() suivi tout de suite de speak() fait sauter la phrase, d'où le petit délai après un cancel ;
+   les utterances sont gardées en mémoire, sinon elles peuvent être libérées avant d'être lues. */
+try{ if(navigator.audioSession) navigator.audioSession.type="playback"; }catch(e){}
+let utts=[], hushAt=0;
+function hush(){ try{ if(speechSynthesis.speaking||speechSynthesis.pending){ speechSynthesis.cancel(); hushAt=Date.now(); } }catch(e){} }
 function speak(texts){
-  try{ speechSynthesis.cancel();
-    for(const t of texts){ if(!t) continue; const u=new SpeechSynthesisUtterance(t); u.lang="ja-JP"; if(voice)u.voice=voice; u.rate=S.cfg.rate; speechSynthesis.speak(u); }
+  try{ hush();
+    const go=()=>{ try{ if(!voice) pickVoice(); speechSynthesis.resume(); utts=[];
+      for(const t of texts){ if(!t) continue; const u=new SpeechSynthesisUtterance(t); u.lang="ja-JP"; if(voice)u.voice=voice; u.rate=S.cfg.rate;
+        u.onerror=e=>{ if(e.error!=="canceled"&&e.error!=="interrupted") toast(`L'audio n'a pas pu être lu (${e.error}).`); };
+        utts.push(u); speechSynthesis.speak(u); }
+      }catch(e){toast("La lecture audio n'est pas disponible sur cet appareil.")} };
+    if(Date.now()-hushAt<120) setTimeout(go,120); else go();
   }catch(e){toast("La lecture audio n'est pas disponible sur cet appareil.")}
 }
 const plain=s=>s.replace(/<[^>]+>/g,"").replace(/[AB]「/g,"「");
@@ -162,7 +176,8 @@ function loadLocal(){
   try{const raw=localStorage.getItem(LS_KEY); if(!raw) return; const o=JSON.parse(raw);
     for(const k in o.cards) S.cards[k]=fromArr(o.cards[k]);
     if(o.daily) S.daily=o.daily; if(o.dk) S.dk=o.dk; if(o.hist) S.hist=o.hist; if(o.histK) S.histK=o.histK;
-    if(o.cfg) S.cfg={...DEFAULT_CFG,...o.cfg}; S.cfgMod=o.cfgMod||0; if(o.deck) deck=o.deck;
+    S.cfgMod=o.cfgMod||0; if(o.deck) deck=o.deck;
+    if(o.cfg&&S.cfgMod) S.cfg={...DEFAULT_CFG,...o.cfg}; // réglages jamais touchés (cfgMod 0) : on suit les défauts actuels
   }catch(e){}
 }
 const dirty=new Set(); let flushTimer=null, flushing=false;

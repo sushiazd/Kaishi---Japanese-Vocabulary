@@ -18,7 +18,7 @@ setInterval(()=>{ if(view==="study"&&cur==null) nextCard(); else if(view==="home
 
 /* ---------- boot ---------- */
 (async function boot(){
-  STORAGE_OK=checkStorage(); loadLocal();
+  STORAGE_OK=checkStorage(); loadLocal(); pickVoice();
   try{
     const d=JSON.parse(document.getElementById("deck").textContent); CARDS=d.cards; GRAM=d.grammar;
     const kd=JSON.parse(document.getElementById("kanji").textContent); KANJI=kd.kanji; KGROUPS=kd.groups;

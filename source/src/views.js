@@ -55,7 +55,7 @@ function renderHome(){
     <div class="tools">${links}</div>
     <div class="sync num" id="sync"></div>
     ${!total&&!(K&&lessonCount())?nextDueLine():""}
-    ${K?`<p class="tip">Chaque kanji commence par une <b>leçon</b> (sens, lecture, écriture) suivie d'un petit quiz. Ensuite il revient en <b>révision</b> : d'abord 10 minutes après, puis de plus en plus espacé. Tu l'écriras de mémoire à partir du lendemain.</p>`
+    ${K?`<p class="tip">Chaque kanji commence par une <b>leçon</b> (sens, lecture, écriture) suivie d'un petit quiz. Ensuite il revient en <b>révision</b> : d'abord 10 minutes après, puis de plus en plus espacé. La leçon suivante attend que tes révisions soient faites. Tu l'écriras de mémoire à partir du lendemain.</p>`
        :`<p class="tip">Comme dans Anki : réponds dans ta tête (ou à voix haute), retourne la carte, puis note-toi honnêtement. « À revoir » si tu ne savais pas, « Correct » si tu savais.</p>`}
   </section>`;
   renderSync();
@@ -64,9 +64,10 @@ function renderHome(){
   const pb=$("#ptBtn"); if(pb) pb.onclick=()=>startPlacement();
 }
 function kanjiButtons(g){
-  const nL=lessonCount(), nR=g.fresh.length+g.learnNow.length+g.learnSoon.length+g.rev.length;
-  return `<div class="kbtns"><button class="primary${nL?"":" alt"}" id="lessonBtn" ${nL?"":"disabled"}>${nL?`Leçon · ${Math.min(5,nL)} kanji`:"Leçons du jour faites"}</button>
-    <button class="primary${nR?"":" alt"}" id="studyBtn" ${nR?"":"disabled"}>${nR?`Révisions · ${nR}`:"Pas de révision"}</button></div>`;
+  const nL=lessonCount(), nR=g.fresh.length+g.learnNow.length+g.learnSoon.length+g.rev.length, wait=nL&&lessonGate(), on=nL&&!wait;
+  return `<div class="kbtns"><button class="primary${on?"":" alt"}" id="lessonBtn" ${on?"":"disabled"}>${on?`Leçon · ${Math.min(5,nL)} kanji`:wait?"Leçon après les révisions":"Leçons du jour faites"}</button>
+    <button class="primary${nR?"":" alt"}" id="studyBtn" ${nR?"":"disabled"}>${nR?`Révisions · ${nR}`:"Pas de révision"}</button>
+    ${wait?`<p class="gate">Les kanji déjà vus passent avant les nouveaux : fais tes révisions, la leçon se débloque ensuite.</p>`:""}</div>`;
 }
 function kStatus(i){ const r=st(KR+i); if(r.susp) return "susp"; if(r.q===0) return "new"; if(r.q===1||r.q===3) return "learn"; return r.ivl>=MATURE?"mature":"young"; }
 function kanjiStrip(){
@@ -98,7 +99,7 @@ function statusChip(c){
 function renderCard(noAudio){
   if(isK(cur)) return renderKanjiCard(noAudio);
   const c=CARDS[cur], s=st(cur); renderCounts();
-  const front=`<div class="word">${esc(c[0])}</div>${S.cfg.sentenceFront?`<p class="sent">${c[4]}</p>`:""}`;
+  const front=`<div class="word">${esc(c[0])}</div>${S.cfg.sentenceFront?`<p class="sent">${c[4]}</p>`:`<button class="ghost sm" id="sentHint">Indice : voir la phrase</button>`}`;
   let html=`<article class="card fade" aria-live="polite"><div class="tagline"><span>${statusChip(s)}</span><span class="num">#${cur+1}</span></div>`;
   if(!shown){ html+=front+`</article>`; }
   else{
@@ -115,6 +116,7 @@ function renderCard(noAudio){
   }
   $("#view").innerHTML=html; $("#stage").scrollTop=0;
   renderAnswerBar();
+  const sh=$("#sentHint"); if(sh) sh.onclick=()=>{ sh.outerHTML=`<p class="sent">${c[4]}</p>`; };
   if(shown){ $("#sayW").onclick=()=>speak([wordSay(c)]); $("#sayS").onclick=()=>speak([plain(c[4])]);
     if(S.cfg.autoplay&&!noAudio) speak([wordSay(c),plain(c[4])]); }
 }
@@ -204,7 +206,7 @@ function answer(btn){
   if(prev.q===2&&btn===1&&n.lapses>=LEECH&&n.lapses%4===0){
     const name=isK(cur)?kOf(cur)[0]:CARDS[cur][0];
     toast(`Carte « ${name} » oubliée ${n.lapses} fois (sangsue) : relis bien l'astuce.`); }
-  pruneHist(); changed(cur); try{speechSynthesis.cancel()}catch(e){}
+  pruneHist(); changed(cur); hush();
   nextCard();
 }
 function pruneHist(){const t=today();for(const hk of ["hist","histK"]) for(const d in S[hk]) if(+d<t-60) delete S[hk][d]}
@@ -317,7 +319,7 @@ function sheetMethod(){
         <li>Le trait qui traverse tout se trace en dernier : 中</li>
       </ul>
       <p>Il y a des exceptions (右 commence par le trait penché, 左 par l'horizontal) : l'animation de chaque fiche les montre.</p></li>
-    <li><h4>Un peu chaque jour</h4><p>Deux leçons de 5 kanji par jour (réglable), puis les révisions, environ 15 minutes en tout. Chaque leçon se termine par un quiz : un kanji n'entre en révision qu'une fois son sens et sa lecture retrouvés. Tu auras vu les ${KANJI.length} kanji en environ huit jours ; la répétition espacée s'occupe ensuite de les garder en mémoire.</p></li>
+    <li><h4>Un peu chaque jour</h4><p>Deux leçons de 5 kanji par jour (réglable), puis les révisions, environ 15 minutes en tout. Chaque leçon se termine par un quiz : un kanji n'entre en révision qu'une fois son sens et sa lecture retrouvés. Les révisions passent toujours en premier : tant qu'il reste des kanji à revoir, la leçon suivante attend. Tu auras vu les ${KANJI.length} kanji en environ huit jours ; la répétition espacée s'occupe ensuite de les garder en mémoire.</p></li>
     <li><h4>Laisser l'app noter</h4><p>Tes réponses tapées et ton écriture sont corrigées automatiquement : c'est plus fiable que de se noter soi-même. Garde « J'avais juste » pour une vraie faute de frappe.</p></li>
     <li><h4>Les retrouver dans du vrai japonais</h4><p>Une fois appris, cherche-les partout : panneaux, mangas avec furigana, sous-titres japonais. C'est en les relisant en contexte qu'ils se fixent pour de bon.</p></li>
   </ol>
@@ -326,13 +328,13 @@ function sheetMethod(){
   </div>`;
 }
 function sheetSettings(){
-  $("#sheetTitle").textContent="Réglages";
-  const c=S.cfg;
+  $("#sheetTitle").textContent="Réglages"; if(!voice) pickVoice();
+  const c=S.cfg, vs=jaVoices();
   $("#sheetBody").innerHTML=`
     <h3 class="set-h">Vocabulaire (Kaishi 1.5k)</h3>
     <div class="row"><label for="newPerDay">Nouvelles cartes par jour<small>Anki : 20 par défaut</small></label><input type="number" id="newPerDay" min="0" max="200" value="${c.newPerDay}"></div>
     <div class="row"><label for="revPerDay">Révisions max par jour<small>Anki : 200 par défaut</small></label><input type="number" id="revPerDay" min="0" max="9999" value="${c.revPerDay}"></div>
-    <div class="row"><label for="sentenceFront">Phrase au recto<small>Kaishi l'affiche par défaut, pour le contexte</small></label><input type="checkbox" class="switch" id="sentenceFront" ${c.sentenceFront?"checked":""}></div>
+    <div class="row"><label for="sentenceFront">Phrase au recto<small>Le contexte aide à deviner le mot. Désactivé : la phrase reste disponible en indice</small></label><input type="checkbox" class="switch" id="sentenceFront" ${c.sentenceFront?"checked":""}></div>
     <div class="row"><label for="showPitch">Afficher l'accent de hauteur<small>Notation des barres hautes / descentes</small></label><input type="checkbox" class="switch" id="showPitch" ${c.showPitch?"checked":""}></div>
     <h3 class="set-h">Kanji N5</h3>
     <div class="row"><label for="kNewPerDay">Nouveaux kanji par jour<small>Par leçons de 5 (10 = deux leçons)</small></label><input type="number" id="kNewPerDay" min="0" max="100" value="${c.kNewPerDay}"></div>
@@ -342,7 +344,8 @@ function sheetSettings(){
     <h3 class="set-h">Audio</h3>
     <div class="row"><label for="autoplay">Lecture audio automatique<small>Au verso de la carte</small></label><input type="checkbox" class="switch" id="autoplay" ${c.autoplay?"checked":""}></div>
     <div class="row"><label for="rate">Vitesse de la voix<small id="rateVal">${c.rate.toFixed(2).replace(".",",")}×</small></label><input type="range" id="rate" min="0.6" max="1.2" step="0.05" value="${c.rate}"></div>
-    <div class="row"><label>Voix japonaise<small>${voice?esc(voice.name):"Aucune voix japonaise trouvée. Sur iPhone : Réglages › Accessibilité › Contenu énoncé › Voix › Japonais."}</small></label><button class="ghost" id="testVoice">Tester</button></div>
+    <div class="row"${vs.length?` style="border:0;padding-bottom:6px"`:""}><label for="voiceSel">Voix japonaise<small>${vs.length?"Pour une voix plus naturelle, télécharge Kyoko ou Otoya en version « Premium » ou « Améliorée » : Réglages de l'iPhone › Accessibilité › Contenu énoncé › Voix › Japonais. Ferme puis rouvre l'app ensuite.":"Aucune voix japonaise trouvée. Sur iPhone : Réglages › Accessibilité › Contenu énoncé › Voix › Japonais."}</small></label><button class="ghost" id="testVoice">Tester</button></div>
+    ${vs.length?`<div class="row"><select id="voiceSel" class="select">${vs.map(v=>`<option value="${esc(v.voiceURI)}"${voice&&v.voiceURI===voice.voiceURI?" selected":""}>${esc(v.name)}${["","",` · Améliorée`,` · Premium`][voiceTier(v)]}</option>`).join("")}</select></div>`:""}
     <h3 class="set-h">Progression</h3>
     <div class="row"><label>Sauvegarder ma progression<small>Les deux decks, dans un fichier .json (iCloud, PC…)</small></label><button class="ghost" id="backup">Sauvegarder</button></div>
     <div class="row"><label for="restoreFile">Restaurer une sauvegarde<small>Remplace la progression actuelle</small></label><button class="ghost" id="restoreBtn">Choisir…</button><input type="file" id="restoreFile" accept=".json,application/json" hidden></div>
@@ -370,6 +373,7 @@ function sheetSettings(){
     }catch(err){ toast("Ce fichier n'est pas une sauvegarde Kaishi valide."); }
     e.target.value=""; };
   $("#testVoice").onclick=()=>speak(["こんにちは。日本語を勉強しています。"]);
+  if($("#voiceSel")) $("#voiceSel").onchange=e=>{S.cfg.voice=e.target.value; pickVoice(); save(); speak(["こんにちは。日本語を勉強しています。"]);};
   let armed=null; $("#reset").onclick=e=>{const b=e.currentTarget;
     if(!armed){b.classList.add("armed");b.textContent="Confirmer : tout effacer";armed=setTimeout(()=>{armed=null;b.classList.remove("armed");b.textContent="Réinitialiser"},4000);return}
     clearTimeout(armed); armed=null; const now=Date.now(), cfg=D();
