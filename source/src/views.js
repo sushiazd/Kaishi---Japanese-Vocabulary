@@ -9,7 +9,8 @@ function stats(d=deck){
 }
 function setDeck(d){ if(d===deck) return; deck=d; undoStack=[]; saveLocal(); renderBrand(); renderHome(); }
 function renderBrand(){
-  $("#brand").innerHTML = deck==="kanji" ? `<b>漢字</b><span>Kanji N5</span>` : `<b>開始</b><span>Kaishi 1.5k · FR</span>`;
+  const [mark,name,sub] = deck==="kanji" ? ["漢","Kanji N5",`JLPT · ${KANJI.length||79} kanji`] : ["開","Kaishi 1.5k","Vocabulaire · FR"];
+  $("#brand").innerHTML = `<span class="brand-mark" lang="ja">${mark}</span><span class="brand-txt"><strong>${name}</strong><small>${sub}</small></span>`;
 }
 function deckTabs(){
   const tab=(d,jp,label)=>{const g=gather(Date.now(),d), n=g.fresh.length+g.learnNow.length+g.learnSoon.length+g.rev.length;
@@ -21,11 +22,17 @@ function renderHome(){
   const g=renderCounts(), s=stats(), N=s.N, total=g.fresh.length+g.learnNow.length+g.learnSoon.length+g.rev.length;
   const pct=x=>(x/N*100).toFixed(2)+"%", K=deck==="kanji";
   const intro = K
-    ? `<h1>漢字 Kanji N5</h1><p class="sub">Les ${KANJI.length} kanji du JLPT N5 : le sens, les lectures dans de vrais mots, et l'écriture au doigt avec l'ordre des traits.</p>`
-    : `<h1>開始 Kaishi 1.5k</h1><p class="sub">Les 1 500 mots japonais les plus fréquents, avec une phrase d'exemple, traduits en français.</p>`;
+    ? `<p class="eyebrow">Japonais · JLPT N5</p><h1><span lang="ja">漢字</span>Kanji N5</h1><p class="lede">Les ${KANJI.length} kanji du JLPT N5 : le sens, les lectures dans de vrais mots, et l'écriture au doigt avec l'ordre des traits.</p>`
+    : `<p class="eyebrow">Japonais · Vocabulaire</p><h1><span lang="ja">開始</span>Kaishi 1.5k</h1><p class="lede">Les 1 500 mots japonais les plus fréquents, avec une phrase d'exemple, traduits en français.</p>`;
+  const tool=(open,ic,title,desc,when)=>`<button class="tool" data-open="${open}"><span class="ic" aria-hidden="true">${ic}</span>${when?`<span class="when num">${when}</span>`:""}<h2>${title}</h2><p>${desc}</p><span class="go">Ouvrir →</span></button>`;
   const links = K
-    ? `<button class="ghost" data-open="grid">Tous les kanji</button><button class="ghost" data-open="method">La méthode</button><button class="ghost" data-open="stats">Statistiques</button><button class="ghost" data-open="settings">Réglages</button>`
-    : `<button class="ghost" data-open="stats">Statistiques</button><button class="ghost" data-open="browse">Parcourir les mots</button><button class="ghost" data-open="settings">Réglages</button>`;
+    ? tool("grid","字","Tous les kanji","Lectures, mots et ordre des traits.",KANJI.length)
+      +tool("method","法","La méthode","Comment ce deck fait retenir.")
+      +tool("stats","統","Statistiques","Réussite, série, prévisions.")
+      +tool("settings","設","Réglages","Rythme, audio, sauvegarde.")
+    : tool("browse","語","Parcourir","Chercher un mot, le suspendre.","1 500")
+      +tool("stats","統","Statistiques","Réussite, série, prévisions.")
+      +tool("settings","設","Réglages","Rythme, audio, sauvegarde.");
   const unit = K ? "cartes" : "vues";
   $("#view").innerHTML=`<section class="home fade">
     ${deckTabs()}
@@ -45,7 +52,7 @@ function renderHome(){
       </div>
     </div>
     ${K?kanjiStrip():""}
-    <div class="links">${links}</div>
+    <div class="tools">${links}</div>
     <div class="sync num" id="sync"></div>
     ${!total&&!(K&&lessonCount())?nextDueLine():""}
     ${K?`<p class="tip">Chaque kanji commence par une <b>leçon</b> (sens, lecture, écriture) suivie d'un petit quiz. Ensuite il revient en <b>révision</b> : d'abord 10 minutes après, puis de plus en plus espacé. Tu l'écriras de mémoire à partir du lendemain.</p>`
