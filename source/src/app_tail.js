@@ -22,6 +22,7 @@ setInterval(()=>{ if(view==="study"&&cur==null) nextCard(); else if(view==="home
   try{
     const d=JSON.parse(document.getElementById("deck").textContent); CARDS=d.cards; GRAM=d.grammar;
     const kd=JSON.parse(document.getElementById("kanji").textContent); KANJI=kd.kanji; KGROUPS=kd.groups;
+    KV=JSON.parse(document.getElementById("kvocab").textContent);
     VOCAB_IDS=CARDS.map((_,i)=>i); KANJI_IDS=KANJI.map((_,i)=>KR+i).concat(KANJI.map((_,i)=>KW+i));
   }catch(e){ $("#view").innerHTML=`<div class="loading">Le deck n'a pas pu être chargé. Recharge la page.</div>`; return; }
   renderHome();

@@ -169,7 +169,6 @@ details.box div{margin-top:6px}
 .row label small{display:block;color:var(--muted);font-size:13px;font-weight:400}
 .row input[type=number]{width:84px;font:inherit;min-height:40px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:10px;background:var(--paper);color:var(--ink);text-align:right}
 .row input[type=range]{width:140px;accent-color:var(--ai)}
-.select{width:100%;font:inherit;min-height:44px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--paper);color:var(--ink)}
 .switch{appearance:none;-webkit-appearance:none;width:46px;height:28px;border-radius:99px;background:var(--line-strong);position:relative;flex:none;cursor:pointer;transition:background .15s}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
 .switch:checked{background:var(--ai)} .switch:checked::after{transform:translateX(18px)}
@@ -256,6 +255,14 @@ details.box div{margin-top:6px}
 .write-row.two .pad,.write-row.two .ksvg{width:100%;max-width:220px}
 .pad-tools{display:flex;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
 .ghost.sm{min-height:34px;padding:6px 12px;font-size:13px}
+
+/* ---------- « Les kanji du mot » (verso du vocabulaire) ---------- */
+.wk{display:grid;gap:8px}
+.wk-k{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;font:inherit;color:inherit}
+.wk-k b{font:600 34px/1.1 var(--f-kanji);text-align:center}
+.wk-k strong{display:block;font:600 15.5px/1.35 var(--serif)}
+.wk-k small{display:block;font-size:12.5px;line-height:1.45;color:var(--ink-2);margin-top:2px}
+.wk-k small.wk-more{color:var(--ai);font-weight:600}
 
 /* ---------- grille & fiche kanji ---------- */
 .kgroup{font:600 12px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ai);margin:20px 0 10px}
@@ -383,4 +390,5 @@ details.box div{margin-top:6px}
   .kstrip:hover{border-color:var(--ai)}
   .ex:hover{background:var(--surface)}
   .ktile:hover{border-color:var(--ai)}
+  button.wk-k:hover{border-color:var(--ai)}
 }
